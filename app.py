@@ -8,7 +8,7 @@ import threading
 import signal
 MAX_SCOPE = 1000
 threadQ = Queue.Queue()
-threadSize = 12
+threadSize = 1
 
 def inscope(snakepos, pos2):
     # if pos2[0] == snakepos[0] and pos2[1] == snakepos[1]:
@@ -104,11 +104,12 @@ def prepareInput(foods, thesnake, othersnake, grd):
 def evaluate(net, browser, agent):
     browser.get("http://slither.io")
     browser.execute_script(
-        "window.connect();window.render_mode = 1;window.want_quality = 0;window.high_quality = false;window.onmousemove = function(){};window.redraw = function() {};")
+        "window.connect();window.render_mode = 1;window.want_quality = 0;window.high_quality = false;window.onmousemove = function(){};")
     #window.redraw = function() {};
     retryNum = 0
     #lastScore = 0
     maxScore = 0
+    startTime = time.time()
     maxTime = time.time()
     while True:
         aliveind = browser.execute_script("return window.dead_mtm")
@@ -144,7 +145,7 @@ def evaluate(net, browser, agent):
                     maxpos = ki
             angle = 2 * np.pi / 24. * maxpos
             goalPos = (np.cos(angle) * 300, np.sin(angle) * 300)
-            print output[24]
+            #print output[24]
             if output[24] > 0.7:
                 acc = 1
             browser.execute_script(
@@ -157,7 +158,7 @@ def evaluate(net, browser, agent):
                 maxTime = time.time()
                     #print "Agent: %d MaxScore:%s" % (agent, maxScore)
 
-            if time.time() - maxTime > 600:
+            if time.time() - maxTime > 120 or time.time() - startTime > 900:
                 print "Agent %d Reach Time Limit MaXscore:%s" % (agent,maxScore)
                 break
             time.sleep(0.1)
@@ -171,8 +172,8 @@ def evaluate(net, browser, agent):
 
 def do_agent():
     while True:
-        browser = webdriver.PhantomJS()
-        #browser = webdriver.Chrome()
+        #browser = webdriver.PhantomJS()
+        browser = webdriver.Chrome()
         item = threadQ.get()
         genome = item[0]
         agent = item[1]
@@ -204,7 +205,7 @@ def run():
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config')
     pop = population.Population(config_path)
-    pop.load_checkpoint("neat-checkpoint-23")
+    pop.load_checkpoint("neat-checkpoint-58")
     pop.run(dispatcher, 400)
 
 
