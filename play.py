@@ -7,13 +7,11 @@ import Queue
 import threading
 import signal
 MAX_SCOPE = 1000
-threadQ = Queue.Queue()
-threadSize = 15
-
-def inscope(snakepos, pos2, dis = MAX_SCOPE):
+from neat import nn, population, statistics
+def inscope(snakepos, pos2):
     # if pos2[0] == snakepos[0] and pos2[1] == snakepos[1]:
     #     return False
-    if calcDistance(snakepos, pos2) < dis:
+    if calcDistance(snakepos, pos2) < MAX_SCOPE:
         return True
     return False
 
@@ -33,6 +31,7 @@ def getAngleIndex(snakepos, pos):
 
 def calcDistance(pos1, pos2):
     return np.sqrt(np.power(pos1[0]-pos2[0],2) + np.power(pos1[1]-pos2[1],2))
+
 
 def scoreDistance(dis):
     return 1 - dis/MAX_SCOPE
@@ -101,16 +100,16 @@ def prepareInput(foods, thesnake, othersnake, grd):
                 snakeangle[i] = -1
 
 
-    snakeposnor = [snakepos[0]/45000., snakepos[1]/45000.]
 
-    return foodangle + foodsize + blockangle + snakeangle + snakeposnor
+
+    return foodangle + foodsize + blockangle + snakeangle + snakepos
 
 
 
 def evaluate(net, browser, agent):
     browser.get("http://slither.io")
     try:
-        browser.execute_script("window.connect();window.render_mode = 1;window.want_quality = 0;window.high_quality = false;window.onmousemove = function(){};window.redraw = function() {};")
+        browser.execute_script("window.connect();window.render_mode = 1;window.want_quality = 0;window.high_quality = false;window.onmousemove = function(){};")
     except:
         print "Loading failure"
         time.sleep(3)
@@ -149,7 +148,7 @@ def evaluate(net, browser, agent):
             #print rinput
             output = net.activate(rinput)
             acc =0
-            maxv = 0.1
+            maxv = 0.
             maxpos = 0
             for ki in range(24):
                 if output[ki] > maxv:
@@ -170,7 +169,7 @@ def evaluate(net, browser, agent):
                 maxTime = time.time()
                     #print "Agent: %d MaxScore:%s" % (agent, maxScore)
 
-            if time.time() - maxTime > 150 or time.time() - startTime > 400:
+            if time.time() - maxTime > 150 or time.time() - startTime > 600:
                 print "Agent %d Reach Time Limit MaXscore:%s" % (agent,maxScore)
                 break
             time.sleep(0.1)
@@ -182,16 +181,14 @@ def evaluate(net, browser, agent):
 
 
 
-def do_agent():
+
+def do_agent(genome):
     while True:
-        browser = webdriver.PhantomJS()
-        #browser = webdriver.Chrome()
-        item = threadQ.get()
-        genome = item[0]
-        #print genome
-        agent = item[1]
+        #browser = webdriver.PhantomJS()
+        browser = webdriver.Chrome()
+        agent = 0
         net = nn.create_recurrent_phenotype(genome)
-        #fitness_t1 = 0.
+
         while True:
             print "Agent %d starts working"%agent
             fitness_t1 = evaluate(net, browser, agent)
@@ -200,31 +197,27 @@ def do_agent():
                 genome.fitness = fitness_t1
                 break
             else:
-                print ("Agent %d Restart Working.! Retry!" % agent)
-        browser.service.process.send_signal(signal.SIGTERM)
+                print ("Agent %d Evalution failed.! Retry!" % agent)
+        #browser.service.process.send_signal(signal.SIGTERM)
         browser.quit()
-        threadQ.task_done()
+        time.sleep(5)
+        
 
 
 
-def dispatcher(genomes):
-    agent_id = 0
-    for g in genomes:
-        agent_id += 1
-        threadQ.put([g, agent_id])
-    threadQ.join()
 
 def run():
     local_dir = os.path.dirname(__file__)
     config_path = os.path.join(local_dir, 'config')
     pop = population.Population(config_path)
-    pop.load_checkpoint("neat-checkpoint-52")
-    pop.run(dispatcher, 4000)
+    pop.load_checkpoint("neat-checkpoint-58")
+    pop1 = []
+    for s in pop.species:
+        pop1.extend(s.members)
+    for gn in pop1:
+        do_agent(gn)
 
 
 
 if __name__ == '__main__':
-    for i in range(threadSize):
-        t = threading.Thread(target=do_agent)
-        t.start()
     run()
